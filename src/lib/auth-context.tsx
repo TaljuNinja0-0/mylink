@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
+/*
 import { 
   onAuthStateChanged, 
   signInWithPopup, 
@@ -9,9 +10,10 @@ import {
 } from "firebase/auth";
 import { auth, googleProvider, db } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
+*/
 
 interface AuthContextType {
-  user: User | null;
+  user: any | null;
   loading: boolean;
   login: () => Promise<void>;
   logout: () => Promise<void>;
@@ -20,20 +22,33 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // 로컬 개발을 위한 Mock 로그인 상태 시뮬레이션
+    const timer = setTimeout(() => {
+      setUser({
+        uid: "dummy-user-id",
+        displayName: "테스터",
+        email: "tester@example.com",
+        photoURL: "https://github.com/shadcn.png"
+      });
+      setLoading(false);
+    }, 500);
+
+    return () => clearTimeout(timer);
+
+    /*
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // Handle user profile creation if it doesn't exist
         const userDocRef = doc(db, "users", user.uid);
         const userDoc = await getDoc(userDocRef);
 
         if (!userDoc.exists()) {
           const emailPrefix = user.email?.split("@")[0] || "";
           await setDoc(userDocRef, {
-            displayName: emailPrefix, // Used for path mylink.com/displayName
+            displayName: emailPrefix,
             username: user.displayName || emailPrefix,
             email: user.email,
             bio: "",
@@ -49,22 +64,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => unsubscribe();
+    */
   }, []);
 
   const login = async () => {
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      console.error("Login Error:", error);
-    }
+    // Mock Login
+    setUser({
+      uid: "dummy-user-id",
+      displayName: "테스터",
+      email: "tester@example.com",
+      photoURL: "https://github.com/shadcn.png"
+    });
   };
 
   const logout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Logout Error:", error);
-    }
+    // Mock Logout
+    setUser(null);
   };
 
   return (
