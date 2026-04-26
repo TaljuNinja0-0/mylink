@@ -80,6 +80,7 @@ export default function Dashboard() {
       title,
       url,
       clickCount: 0,
+      createdAt: new Date().toISOString(),
     };
     setLinks([newLink, ...links]);
   };
