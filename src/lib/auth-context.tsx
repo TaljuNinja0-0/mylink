@@ -8,7 +8,7 @@ import {
   User 
 } from "firebase/auth";
 import { auth, googleProvider, db } from "./firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 interface AuthContextType {
   user: User | null;
@@ -24,20 +24,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    /* 실제 Firebase 인증 상태 감시 주석 처리
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         const userDocRef = doc(db, "users", firebaseUser.uid);
         const userDoc = await getDoc(userDocRef);
 
         if (!userDoc.exists()) {
-          const emailPrefix = firebaseUser.email?.split("@")[0] || "";
+          // 이메일 앞부분을 기본 username(슬러그)으로 사용
+          const emailPrefix = firebaseUser.email?.split("@")[0] || "user";
           await setDoc(userDocRef, {
+            uid: firebaseUser.uid,
+            username: emailPrefix, // 슬러그로 사용됨
             displayName: firebaseUser.displayName || emailPrefix,
             email: firebaseUser.email,
-            bio: "",
+            bio: "반갑습니다! MyLink 페이지입니다.",
             photoURL: firebaseUser.photoURL || "",
-            createdAt: new Date(),
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
           });
         }
         setUser(firebaseUser);
@@ -48,22 +51,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => unsubscribe();
-    */
-    setLoading(false); // 초기 로딩 상태 즉시 해제
   }, []);
 
   const login = async () => {
     try {
-      // 구글 소셜 로그인 주석 처리
-      // await signInWithPopup(auth, googleProvider);
-      
-      // 테스트를 위한 Mock 로그인
-      setUser({
-        uid: "anonymous-user",
-        displayName: "테스터",
-        email: "tester@example.com",
-        photoURL: "https://github.com/shadcn.png"
-      } as any);
+      await signInWithPopup(auth, googleProvider);
     } catch (error) {
       console.error("Login failed:", error);
     }
@@ -71,8 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      // await signOut(auth);
-      setUser(null);
+      await signOut(auth);
     } catch (error) {
       console.error("Logout failed:", error);
     }

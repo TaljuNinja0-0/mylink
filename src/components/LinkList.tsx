@@ -7,15 +7,20 @@ import { type LinkItem } from "@/data/links";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 
-export default function LinkList() {
+interface LinkListProps {
+  uid: string;
+}
+
+export default function LinkList({ uid }: LinkListProps) {
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchLinks() {
+      if (!uid) return;
       try {
         setLoading(true);
-        const linksRef = collection(db, "users", "anonymous", "links");
+        const linksRef = collection(db, "users", uid, "links");
         const q = query(linksRef, orderBy("createdAt", "desc"));
         const snapshot = await getDocs(q);
         const fetchedLinks = snapshot.docs.map(doc => ({
@@ -31,7 +36,7 @@ export default function LinkList() {
     }
     
     fetchLinks();
-  }, []);
+  }, [uid]);
 
   if (loading) {
     return (

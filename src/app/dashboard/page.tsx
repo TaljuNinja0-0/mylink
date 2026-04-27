@@ -1,19 +1,31 @@
 "use client";
 
-import { useAuth } from "@/lib/auth-context";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, updateDoc, collection, getDocs, addDoc, deleteDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
+import { useAuth } from "@/lib/auth-context";
+import { 
+  doc, 
+  getDoc, 
+  updateDoc, 
+  collection, 
+  getDocs, 
+  addDoc, 
+  deleteDoc, 
+  query, 
+  orderBy, 
+  serverTimestamp,
+  onSnapshot 
+} from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { LogOut, ExternalLink, Trash2, Loader2, Pencil } from "lucide-react";
+import { LogOut, ExternalLink, Trash2, Loader2, Pencil, LogIn, Lock } from "lucide-react";
 import { AddLinkDialog } from "@/components/dashboard/AddLinkDialog";
 import { DashboardLinkItem } from "@/components/dashboard/DashboardLinkItem";
-import { dummyLinks, type LinkItem } from "@/data/links";
+import { type LinkItem } from "@/data/links";
 
 export default function Dashboard() {
-  const { user, loading, logout } = useAuth();
+  const { user, loading: authLoading, logout, login } = useAuth();
   const router = useRouter();
   const [profile, setProfile] = useState<any>(null);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -21,68 +33,51 @@ export default function Dashboard() {
   const [tempName, setTempName] = useState("");
   const [tempBio, setTempBio] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
-  
-  // Local links state
   const [links, setLinks] = useState<LinkItem[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
 
+  // Fetch profile and links
   useEffect(() => {
-    if (!loading && !user) {
-      router.push("/");
-    }
-  }, [user, loading, router]);
+    if (authLoading || !user) return;
 
-  useEffect(() => {
-    async function fetchProfile() {
-      // 익명 테스트를 위해 고정된 'anonymous' 문서 사용
-      const docRef = doc(db, "users", "anonymous");
+    const fetchProfile = async () => {
+      const docRef = doc(db, "users", user.uid);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const data = docSnap.data();
         setProfile(data);
-        setTempName(data.username || data.displayName || "Anonymous");
+        setTempName(data.username || data.displayName || "");
         setTempBio(data.bio || "");
-      } else {
-        // 문서가 없으면 기본값 설정
-        const defaultProfile = {
-          username: "Anonymous Tester",
-          displayName: "Anonymous",
-          email: "anonymous@test.com",
-          photoURL: "https://github.com/shadcn.png",
-          bio: "Firebase 테스트 중"
-        };
-        setProfile(defaultProfile);
-        setTempName(defaultProfile.username);
-        setTempBio(defaultProfile.bio);
       }
-    }
-    fetchProfile();
-  }, []);
+    };
 
-  const fetchLinks = async () => {
-    try {
-      const linksRef = collection(db, "users", "anonymous", "links");
-      const q = query(linksRef, orderBy("createdAt", "desc"));
-      const snapshot = await getDocs(q);
+    fetchProfile();
+
+    // Fetch links
+    const linksRef = collection(db, "users", user.uid, "links");
+    const q = query(linksRef, orderBy("createdAt", "desc"));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const fetchedLinks = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as LinkItem[];
       setLinks(fetchedLinks);
-    } catch (error) {
-      console.error("Error fetching links:", error);
-    }
-  };
+      setDataLoading(false);
+    });
 
-  // Initial fetch
-  useEffect(() => {
-    fetchLinks();
-  }, []);
+    return () => unsubscribe();
+  }, [user, authLoading]);
 
   const updateProfile = async (field: string, value: string) => {
+    if (!user) return;
     setIsUpdating(true);
-    const docRef = doc(db, "users", "anonymous");
+    const docRef = doc(db, "users", user.uid);
     try {
-      await updateDoc(docRef, { [field]: value });
+      await updateDoc(docRef, { 
+        [field]: value,
+        updatedAt: serverTimestamp()
+      });
       setProfile((prev: any) => ({ ...prev, [field]: value }));
     } catch (error) {
       console.error("Update failed:", error);
@@ -92,16 +87,16 @@ export default function Dashboard() {
   };
 
   const addLink = async (title: string, url: string) => {
+    if (!user) return;
     setIsUpdating(true);
     try {
-      await addDoc(collection(db, "users", "anonymous", "links"), {
+      await addDoc(collection(db, "users", user.uid, "links"), {
         title,
         url,
         clickCount: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
-      await fetchLinks(); // 갱신형: 작업 후 목록 다시 불러오기
     } catch (error) {
       console.error("Add link failed:", error);
     } finally {
@@ -110,15 +105,15 @@ export default function Dashboard() {
   };
 
   const updateLink = async (id: string, title: string, url: string) => {
+    if (!user) return;
     setIsUpdating(true);
     try {
-      const linkRef = doc(db, "users", "anonymous", "links", id);
+      const linkRef = doc(db, "users", user.uid, "links", id);
       await updateDoc(linkRef, {
         title,
         url,
         updatedAt: serverTimestamp(),
       });
-      await fetchLinks(); // 갱신형: 작업 후 목록 다시 불러오기
     } catch (error) {
       console.error("Update link failed:", error);
     } finally {
@@ -127,10 +122,10 @@ export default function Dashboard() {
   };
 
   const deleteLink = async (id: string) => {
+    if (!user) return;
     setIsUpdating(true);
     try {
-      await deleteDoc(doc(db, "users", "anonymous", "links", id));
-      await fetchLinks(); // 갱신형: 작업 후 목록 다시 불러오기
+      await deleteDoc(doc(db, "users", user.uid, "links", id));
     } catch (error) {
       console.error("Delete link failed:", error);
     } finally {
@@ -138,17 +133,45 @@ export default function Dashboard() {
     }
   };
 
-  if (loading || !user || !profile) {
+  if (authLoading) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-4 bg-gray-50">
+      <div className="flex h-[calc(100vh-64px)] flex-col items-center justify-center gap-4">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="text-lg font-medium text-muted-foreground">대시보드를 불러오는 중...</p>
+        <p className="text-lg font-medium text-muted-foreground">로그인 상태를 확인 중입니다...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex h-[calc(100vh-64px)] flex-col items-center justify-center p-6 text-center">
+        <div className="mb-6 rounded-full bg-primary/10 p-6 text-primary">
+          <Lock className="h-12 w-12" />
+        </div>
+        <h2 className="mb-3 text-2xl font-bold text-gray-900">로그인이 필요한 서비스입니다</h2>
+        <p className="mb-8 max-w-md text-muted-foreground leading-relaxed">
+          MyLink의 대시보드를 이용하려면 로그인이 필요합니다.<br />
+          지금 로그인하고 나만의 링크 페이지를 만들어보세요!
+        </p>
+        <Button size="lg" onClick={login} className="font-bold shadow-lg shadow-primary/20 px-8">
+          <LogIn className="mr-2 h-5 w-5" />
+          Google로 로그인하기
+        </Button>
+      </div>
+    );
+  }
+
+  if (!profile && dataLoading) {
+    return (
+      <div className="flex h-[calc(100vh-64px)] flex-col items-center justify-center gap-4">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="text-lg font-medium text-muted-foreground">사용자 데이터를 불러오는 중...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans relative">
+    <div className="min-h-screen p-4 md:p-8 font-sans relative">
       {/* Global Updating Loader */}
       {isUpdating && (
         <div className="fixed top-0 left-0 w-full h-1 z-50 overflow-hidden bg-primary/10">
@@ -156,30 +179,30 @@ export default function Dashboard() {
         </div>
       )}
       
-      <header className="mx-auto mb-8 flex max-w-2xl items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-primary">MyLink</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => window.open(`/${profile.displayName}`, "_blank")}>
-            <ExternalLink className="mr-2 h-4 w-4" />
-            페이지 보기
-          </Button>
-          <Button variant="ghost" size="sm" onClick={logout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            로그아웃
-          </Button>
-        </div>
-      </header>
-
       <main className="mx-auto max-w-2xl space-y-8">
+        <header className="flex items-center justify-between mb-4 px-2">
+          <h2 className="text-2xl font-bold tracking-tight text-gray-900">내 대시보드</h2>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="shadow-sm"
+            onClick={() => window.open(`/${profile?.username || user.uid}`, "_blank")}
+          >
+            <ExternalLink className="mr-2 h-4 w-4" />
+            내 페이지 보기
+          </Button>
+        </header>
+
         {/* Profile Card */}
-        <div className="rounded-2xl border-none bg-white p-8 shadow-xl relative overflow-hidden group">
+        <div className="rounded-3xl border-none bg-white p-8 shadow-xl relative overflow-hidden group">
           <div className="absolute inset-0 bg-linear-to-br from-primary/5 to-transparent opacity-50" />
           <div className="relative flex flex-col items-center space-y-5">
             <div className="relative">
               <div className="absolute -inset-1 bg-linear-to-r from-primary to-blue-400 rounded-full blur-md opacity-25 group-hover:opacity-50 transition-opacity" />
               <img
-                src={profile.photoURL}
+                src={profile?.photoURL || user.photoURL || "https://github.com/shadcn.png"}
                 alt="Profile"
+                referrerPolicy="no-referrer"
                 className="relative h-28 w-28 rounded-full border-4 border-white object-cover shadow-lg"
               />
             </div>
@@ -209,11 +232,11 @@ export default function Dashboard() {
                     onClick={() => !isUpdating && setIsEditingName(true)}
                     className={`cursor-pointer text-2xl font-extrabold hover:text-primary transition-colors group inline-flex items-center gap-2 ${isUpdating ? "opacity-70" : ""}`}
                   >
-                    {profile.username || "Set Name"} 
+                    {profile?.username || "이름 설정"} 
                     <span className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-all text-sm translate-x-1">✎</span>
                   </h2>
                 )}
-                <p className="text-sm text-muted-foreground font-medium tracking-wide">{profile.email}</p>
+                <p className="text-sm text-muted-foreground font-medium tracking-wide">{user.email}</p>
               </div>
 
               <div className="text-base">
@@ -233,7 +256,7 @@ export default function Dashboard() {
                     }}
                     autoFocus
                     disabled={isUpdating}
-                    placeholder="Short bio..."
+                    placeholder="자기소개를 입력해주세요..."
                     className="mx-auto max-w-md text-center bg-gray-50/50"
                   />
                 ) : (
@@ -241,7 +264,7 @@ export default function Dashboard() {
                     onClick={() => !isUpdating && setIsEditingBio(true)}
                     className={`cursor-pointer text-muted-foreground leading-relaxed hover:text-primary transition-colors group flex items-center justify-center gap-1.5 ${isUpdating ? "opacity-70" : ""}`}
                   >
-                    {profile.bio || "Add a short bio..."} 
+                    {profile?.bio || "자기소개를 추가해보세요..."} 
                     <span className="opacity-0 group-hover:opacity-100 transition-all text-xs">✎</span>
                   </p>
                 )}
@@ -251,16 +274,20 @@ export default function Dashboard() {
         </div>
 
         {/* Links Section */}
-        <div className="space-y-6">
+        <div className="space-y-6 pb-20">
           <div className="flex items-center justify-between px-2">
-            <h3 className="text-xl font-bold tracking-tight">내 링크 관리</h3>
+            <h3 className="text-xl font-bold tracking-tight">링크 관리</h3>
             <AddLinkDialog onAdd={addLink} isLoading={isUpdating} />
           </div>
           
           <div className="space-y-4">
-            {links.length === 0 ? (
-              <div className="flex h-32 items-center justify-center rounded-2xl border-2 border-dashed bg-white/50 text-muted-foreground shadow-inner">
-                등록된 링크가 없습니다. "링크 추가하기" 버튼을 눌러 시작해보세요.
+            {dataLoading ? (
+              <div className="flex h-32 items-center justify-center rounded-2xl border bg-white/50 shadow-inner">
+                <Loader2 className="h-6 w-6 animate-spin text-primary/40" />
+              </div>
+            ) : links.length === 0 ? (
+              <div className="flex h-32 items-center justify-center rounded-3xl border-2 border-dashed bg-white/50 text-muted-foreground shadow-inner">
+                등록된 링크가 없습니다. "링크 추가하기"를 클릭해 보세요.
               </div>
             ) : (
               links.map((link) => (
