@@ -1,7 +1,6 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-/*
 import { 
   onAuthStateChanged, 
   signInWithPopup, 
@@ -10,10 +9,9 @@ import {
 } from "firebase/auth";
 import { auth, googleProvider, db } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-*/
 
 interface AuthContextType {
-  user: any | null;
+  user: User | null;
   loading: boolean;
   login: () => Promise<void>;
   logout: () => Promise<void>;
@@ -22,41 +20,27 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 로컬 개발을 위한 Mock 로그인 상태 시뮬레이션
-    const timer = setTimeout(() => {
-      setUser({
-        uid: "dummy-user-id",
-        displayName: "테스터",
-        email: "tester@example.com",
-        photoURL: "https://github.com/shadcn.png"
-      });
-      setLoading(false);
-    }, 500);
-
-    return () => clearTimeout(timer);
-
-    /*
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const userDocRef = doc(db, "users", user.uid);
+    /* 실제 Firebase 인증 상태 감시 주석 처리
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const userDocRef = doc(db, "users", firebaseUser.uid);
         const userDoc = await getDoc(userDocRef);
 
         if (!userDoc.exists()) {
-          const emailPrefix = user.email?.split("@")[0] || "";
+          const emailPrefix = firebaseUser.email?.split("@")[0] || "";
           await setDoc(userDocRef, {
-            displayName: emailPrefix,
-            username: user.displayName || emailPrefix,
-            email: user.email,
+            displayName: firebaseUser.displayName || emailPrefix,
+            email: firebaseUser.email,
             bio: "",
-            photoURL: user.photoURL || "",
+            photoURL: firebaseUser.photoURL || "",
             createdAt: new Date(),
           });
         }
-        setUser(user);
+        setUser(firebaseUser);
       } else {
         setUser(null);
       }
@@ -65,21 +49,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => unsubscribe();
     */
+    setLoading(false); // 초기 로딩 상태 즉시 해제
   }, []);
 
   const login = async () => {
-    // Mock Login
-    setUser({
-      uid: "dummy-user-id",
-      displayName: "테스터",
-      email: "tester@example.com",
-      photoURL: "https://github.com/shadcn.png"
-    });
+    try {
+      // 구글 소셜 로그인 주석 처리
+      // await signInWithPopup(auth, googleProvider);
+      
+      // 테스트를 위한 Mock 로그인
+      setUser({
+        uid: "anonymous-user",
+        displayName: "테스터",
+        email: "tester@example.com",
+        photoURL: "https://github.com/shadcn.png"
+      } as any);
+    } catch (error) {
+      console.error("Login failed:", error);
+    }
   };
 
   const logout = async () => {
-    // Mock Logout
-    setUser(null);
+    try {
+      // await signOut(auth);
+      setUser(null);
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
   };
 
   return (

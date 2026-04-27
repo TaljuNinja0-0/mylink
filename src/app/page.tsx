@@ -17,23 +17,23 @@ export default function Home() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8 text-center">
-      <h1 className="mb-4 text-5xl font-bold">MyLink</h1>
-      <p className="mb-8 text-xl text-muted-foreground">
-        Share all your links in one place. Simple, fast, and free.
+      <h1 className="mb-4 text-5xl font-bold tracking-tight text-primary">MyLink</h1>
+      <p className="mb-8 text-xl text-muted-foreground max-w-md">
+        당신의 모든 링크를 한곳에서 관리하고 공유하세요. 심플하고 빠르며 무료입니다.
       </p>
 
       {user ? (
         <div className="flex flex-col gap-4">
-          <p className="text-lg">Welcome, {user.displayName}!</p>
+          <p className="text-lg font-medium">{user.displayName}님, 환영합니다!</p>
           <Link href="/dashboard">
-            <Button size="lg" className="w-full">
-              Go to Dashboard
+            <Button size="lg" className="w-full font-bold shadow-lg">
+              대시보드로 이동
             </Button>
           </Link>
         </div>
       ) : (
-        <Button size="lg" onClick={login}>
-          Sign in with Google
+        <Button size="lg" onClick={login} className="font-bold shadow-lg">
+          Google로 시작하기
         </Button>
       )}
     </main>

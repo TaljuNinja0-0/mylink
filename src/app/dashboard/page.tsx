@@ -4,11 +4,12 @@ import { useAuth } from "@/lib/auth-context";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
-// import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, collection, getDocs, addDoc, deleteDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { LogOut, ExternalLink, Trash2 } from "lucide-react";
+import { LogOut, ExternalLink, Trash2, Loader2, Pencil } from "lucide-react";
 import { AddLinkDialog } from "@/components/dashboard/AddLinkDialog";
+import { DashboardLinkItem } from "@/components/dashboard/DashboardLinkItem";
 import { dummyLinks, type LinkItem } from "@/data/links";
 
 export default function Dashboard() {
@@ -19,9 +20,10 @@ export default function Dashboard() {
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [tempName, setTempName] = useState("");
   const [tempBio, setTempBio] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
   
-  // Local links state with initial dummy data
-  const [links, setLinks] = useState<LinkItem[]>(dummyLinks);
+  // Local links state
+  const [links, setLinks] = useState<LinkItem[]>([]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -30,85 +32,140 @@ export default function Dashboard() {
   }, [user, loading, router]);
 
   useEffect(() => {
-    // 로컬 개발을 위한 더미 프로필 설정
-    setProfile({
-      username: "테스터",
-      displayName: "tester",
-      email: "tester@example.com",
-      bio: "안녕하세요! MyLink 로컬 테스트 중입니다.",
-      photoURL: "https://github.com/shadcn.png"
-    });
-    setTempName("테스터");
-    setTempBio("안녕하세요! MyLink 로컬 테스트 중입니다.");
-
-    /*
     async function fetchProfile() {
-      if (user) {
-        const docRef = doc(db, "users", user.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          setProfile(data);
-          setTempName(data.username);
-          setTempBio(data.bio);
-        }
+      // 익명 테스트를 위해 고정된 'anonymous' 문서 사용
+      const docRef = doc(db, "users", "anonymous");
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setProfile(data);
+        setTempName(data.username || data.displayName || "Anonymous");
+        setTempBio(data.bio || "");
+      } else {
+        // 문서가 없으면 기본값 설정
+        const defaultProfile = {
+          username: "Anonymous Tester",
+          displayName: "Anonymous",
+          email: "anonymous@test.com",
+          photoURL: "https://github.com/shadcn.png",
+          bio: "Firebase 테스트 중"
+        };
+        setProfile(defaultProfile);
+        setTempName(defaultProfile.username);
+        setTempBio(defaultProfile.bio);
       }
     }
     fetchProfile();
-    */
-  }, [user]);
+  }, []);
+
+  const fetchLinks = async () => {
+    try {
+      const linksRef = collection(db, "users", "anonymous", "links");
+      const q = query(linksRef, orderBy("createdAt", "desc"));
+      const snapshot = await getDocs(q);
+      const fetchedLinks = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as LinkItem[];
+      setLinks(fetchedLinks);
+    } catch (error) {
+      console.error("Error fetching links:", error);
+    }
+  };
+
+  // Initial fetch
+  useEffect(() => {
+    fetchLinks();
+  }, []);
 
   const updateProfile = async (field: string, value: string) => {
-    // 로컬 상태만 업데이트
-    setProfile((prev: any) => ({ ...prev, [field]: value }));
-    
-    /*
-    if (!user) return;
-    const docRef = doc(db, "users", user.uid);
+    setIsUpdating(true);
+    const docRef = doc(db, "users", "anonymous");
     try {
       await updateDoc(docRef, { [field]: value });
       setProfile((prev: any) => ({ ...prev, [field]: value }));
     } catch (error) {
       console.error("Update failed:", error);
+    } finally {
+      setIsUpdating(false);
     }
-    */
   };
 
-  const addLink = (title: string, url: string) => {
-    const newLink: LinkItem = {
-      id: Math.random().toString(36).substr(2, 9),
-      title,
-      url,
-      clickCount: 0,
-      createdAt: new Date().toISOString(),
-    };
-    setLinks([newLink, ...links]);
+  const addLink = async (title: string, url: string) => {
+    setIsUpdating(true);
+    try {
+      await addDoc(collection(db, "users", "anonymous", "links"), {
+        title,
+        url,
+        clickCount: 0,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      await fetchLinks(); // 갱신형: 작업 후 목록 다시 불러오기
+    } catch (error) {
+      console.error("Add link failed:", error);
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
-  const deleteLink = (id: string) => {
-    setLinks(links.filter(link => link.id !== id));
+  const updateLink = async (id: string, title: string, url: string) => {
+    setIsUpdating(true);
+    try {
+      const linkRef = doc(db, "users", "anonymous", "links", id);
+      await updateDoc(linkRef, {
+        title,
+        url,
+        updatedAt: serverTimestamp(),
+      });
+      await fetchLinks(); // 갱신형: 작업 후 목록 다시 불러오기
+    } catch (error) {
+      console.error("Update link failed:", error);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const deleteLink = async (id: string) => {
+    setIsUpdating(true);
+    try {
+      await deleteDoc(doc(db, "users", "anonymous", "links", id));
+      await fetchLinks(); // 갱신형: 작업 후 목록 다시 불러오기
+    } catch (error) {
+      console.error("Delete link failed:", error);
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   if (loading || !user || !profile) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <p className="text-lg">Loading...</p>
+      <div className="flex h-screen flex-col items-center justify-center gap-4 bg-gray-50">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="text-lg font-medium text-muted-foreground">대시보드를 불러오는 중...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans relative">
+      {/* Global Updating Loader */}
+      {isUpdating && (
+        <div className="fixed top-0 left-0 w-full h-1 z-50 overflow-hidden bg-primary/10">
+          <div className="h-full bg-primary animate-progress origin-left w-full" />
+        </div>
+      )}
+      
       <header className="mx-auto mb-8 flex max-w-2xl items-center justify-between">
-        <h1 className="text-2xl font-bold">MyLink</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-primary">MyLink</h1>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => window.open(`/${profile.displayName}`, "_blank")}>
             <ExternalLink className="mr-2 h-4 w-4" />
-            View Live
+            페이지 보기
           </Button>
           <Button variant="ghost" size="sm" onClick={logout}>
             <LogOut className="mr-2 h-4 w-4" />
-            Logout
+            로그아웃
           </Button>
         </div>
       </header>
@@ -144,12 +201,13 @@ export default function Dashboard() {
                       }
                     }}
                     autoFocus
+                    disabled={isUpdating}
                     className="mx-auto max-w-xs text-center text-2xl font-bold bg-gray-50/50"
                   />
                 ) : (
                   <h2
-                    onClick={() => setIsEditingName(true)}
-                    className="cursor-pointer text-2xl font-extrabold hover:text-primary transition-colors group inline-flex items-center gap-2"
+                    onClick={() => !isUpdating && setIsEditingName(true)}
+                    className={`cursor-pointer text-2xl font-extrabold hover:text-primary transition-colors group inline-flex items-center gap-2 ${isUpdating ? "opacity-70" : ""}`}
                   >
                     {profile.username || "Set Name"} 
                     <span className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-all text-sm translate-x-1">✎</span>
@@ -174,13 +232,14 @@ export default function Dashboard() {
                       }
                     }}
                     autoFocus
+                    disabled={isUpdating}
                     placeholder="Short bio..."
                     className="mx-auto max-w-md text-center bg-gray-50/50"
                   />
                 ) : (
                   <p
-                    onClick={() => setIsEditingBio(true)}
-                    className="cursor-pointer text-muted-foreground leading-relaxed hover:text-primary transition-colors group flex items-center justify-center gap-1.5"
+                    onClick={() => !isUpdating && setIsEditingBio(true)}
+                    className={`cursor-pointer text-muted-foreground leading-relaxed hover:text-primary transition-colors group flex items-center justify-center gap-1.5 ${isUpdating ? "opacity-70" : ""}`}
                   >
                     {profile.bio || "Add a short bio..."} 
                     <span className="opacity-0 group-hover:opacity-100 transition-all text-xs">✎</span>
@@ -194,46 +253,24 @@ export default function Dashboard() {
         {/* Links Section */}
         <div className="space-y-6">
           <div className="flex items-center justify-between px-2">
-            <h3 className="text-xl font-bold tracking-tight">Your Links</h3>
-            <AddLinkDialog onAdd={addLink} />
+            <h3 className="text-xl font-bold tracking-tight">내 링크 관리</h3>
+            <AddLinkDialog onAdd={addLink} isLoading={isUpdating} />
           </div>
           
           <div className="space-y-4">
             {links.length === 0 ? (
               <div className="flex h-32 items-center justify-center rounded-2xl border-2 border-dashed bg-white/50 text-muted-foreground shadow-inner">
-                No links yet. Click "Add New Link" to start.
+                등록된 링크가 없습니다. "링크 추가하기" 버튼을 눌러 시작해보세요.
               </div>
             ) : (
               links.map((link) => (
-                <div 
+                <DashboardLinkItem
                   key={link.id}
-                  className="flex items-center gap-5 rounded-2xl border bg-white p-5 shadow-sm hover:shadow-md hover:border-primary/50 transition-all duration-300 group"
-                >
-                  <div className="bg-linear-to-br from-gray-50 to-gray-100 p-3 rounded-xl shrink-0 border border-gray-100 group-hover:scale-110 transition-transform">
-                    <img 
-                      src={`https://www.google.com/s2/favicons?domain=${(() => {
-                        try { return new URL(link.url).hostname; } 
-                        catch { return ""; }
-                      })()}&sz=64`} 
-                      alt="" 
-                      className="w-8 h-8 object-contain"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-lg truncate text-gray-900">{link.title}</h4>
-                    <p className="text-sm text-muted-foreground truncate font-medium">{link.url}</p>
-                  </div>
-                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
-                    <Button 
-                      variant="ghost" 
-                      size="icon-sm" 
-                      onClick={() => deleteLink(link.id)}
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full h-10 w-10"
-                    >
-                      <Trash2 className="h-5 w-5" />
-                    </Button>
-                  </div>
-                </div>
+                  link={link}
+                  onUpdate={updateLink}
+                  onDelete={deleteLink}
+                  isUpdating={isUpdating}
+                />
               ))
             )}
           </div>
