@@ -46,20 +46,20 @@ export function Navbar() {
   if (!mounted) return null;
 
   return (
-    <nav className="sticky top-0 z-40 w-full border-b bg-white/80 backdrop-blur-md">
+    <nav className="sticky top-0 z-40 w-full border-b bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold shadow-lg shadow-primary/20">
             M
           </div>
-          <span className="text-xl font-bold tracking-tight text-gray-900 hidden sm:inline-block">
+          <span className="text-xl font-bold tracking-tight text-foreground hidden sm:inline-block">
             MyLink
           </span>
         </Link>
 
         <div className="flex items-center gap-3">
           {loading ? (
-            <div className="h-8 w-24 animate-pulse rounded-lg bg-gray-100" />
+            <div className="h-8 w-24 animate-pulse rounded-lg bg-muted" />
           ) : user ? (
             <>
               {/* Removed dashboard button */}
@@ -77,7 +77,7 @@ export function Navbar() {
               
               <DropdownMenu>
                 <DropdownMenuTrigger render={
-                  <button className="flex items-center gap-2 rounded-full border-2 border-primary/20 p-0.5 pr-2 transition-all hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary/20">
+                  <button className="flex items-center gap-2 rounded-full border-2 border-primary/20 p-0.5 pr-2 transition-all hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/20">
                     <div className="h-7 w-7 overflow-hidden rounded-full shadow-sm">
                       <img 
                         src={user.photoURL || "https://github.com/shadcn.png"} 
@@ -86,12 +86,12 @@ export function Navbar() {
                         className="h-full w-full object-cover"
                       />
                     </div>
-                    <ChevronDown className="h-3 w-3 text-gray-400" />
+                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
                   </button>
                 } />
                 <DropdownMenuContent className="w-56">
                   <div className="flex flex-col space-y-1 p-3 pb-2">
-                    <p className="text-sm font-bold leading-none text-gray-900">
+                    <p className="text-sm font-bold leading-none text-foreground">
                       {displayLabel}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground truncate">
@@ -99,7 +99,7 @@ export function Navbar() {
                     </p>
                   </div>
                   <DropdownMenuSeparator />
-                  <div className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  <div className="px-3 py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                     내 페이지
                   </div>
                   <DropdownMenuItem onClick={() => {

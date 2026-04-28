@@ -35,9 +35,9 @@ export default function LinkList({ uid }: LinkListProps) {
           rel="noopener noreferrer"
           className="w-full transition-all duration-300 hover:-translate-y-1 active:scale-[0.98] block group"
         >
-          <Card className="cursor-pointer overflow-hidden border-none bg-linear-to-br from-primary to-primary/80 text-primary-foreground shadow-md group-hover:shadow-[0_10px_25px_-5px_rgba(59,130,246,0.4)] transition-all duration-300">
+          <Card className="cursor-pointer overflow-hidden border border-border bg-card text-card-foreground shadow-sm group-hover:shadow-md group-hover:border-primary/50 transition-all duration-300">
             <CardContent className="p-5 flex items-center justify-center gap-4">
-              <div className="bg-white/10 backdrop-blur-sm p-1.5 rounded-lg shrink-0 border border-white/20 transition-transform group-hover:scale-110">
+              <div className="bg-muted p-1.5 rounded-lg shrink-0 border border-border transition-transform group-hover:scale-110">
                 <img 
                   src={`https://www.google.com/s2/favicons?domain=${(() => {
                     try { return new URL(link.url).hostname; } 
@@ -47,7 +47,7 @@ export default function LinkList({ uid }: LinkListProps) {
                   className="w-7 h-7 object-contain brightness-110 contrast-110"
                 />
               </div>
-              <span className="font-bold text-lg tracking-tight truncate drop-shadow-sm">{link.title}</span>
+              <span className="font-bold text-lg tracking-tight truncate">{link.title}</span>
             </CardContent>
           </Card>
         </a>

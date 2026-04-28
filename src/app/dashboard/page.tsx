@@ -12,6 +12,7 @@ import {
   useDeleteLink 
 } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { LogOut, ExternalLink, Trash2, Loader2, Pencil, LogIn, Lock } from "lucide-react";
 import { AddLinkDialog } from "@/components/dashboard/AddLinkDialog";
@@ -134,18 +135,20 @@ export default function Dashboard() {
   if (!user) {
     return (
       <div className="flex h-[calc(100vh-64px)] flex-col items-center justify-center p-6 text-center">
-        <div className="mb-6 rounded-full bg-primary/10 p-6 text-primary">
-          <Lock className="h-12 w-12" />
-        </div>
-        <h2 className="mb-3 text-2xl font-bold text-gray-900">로그인이 필요한 서비스입니다</h2>
-        <p className="mb-8 max-w-md text-muted-foreground leading-relaxed">
-          MyLink의 대시보드를 이용하려면 로그인이 필요합니다.<br />
-          지금 로그인하고 나만의 링크 페이지를 만들어보세요!
-        </p>
-        <Button size="lg" onClick={login} className="font-bold shadow-lg shadow-primary/20 px-8">
-          <LogIn className="mr-2 h-5 w-5" />
-          Google로 로그인하기
-        </Button>
+        <Card className="max-w-md p-8 border-border shadow-sm flex flex-col items-center">
+          <div className="mb-6 rounded-full bg-muted p-6 text-foreground">
+            <Lock className="h-12 w-12" />
+          </div>
+          <h2 className="mb-3 text-2xl font-bold text-foreground">로그인이 필요한 서비스입니다</h2>
+          <p className="mb-8 text-muted-foreground leading-relaxed">
+            MyLink의 대시보드를 이용하려면 로그인이 필요합니다.<br />
+            지금 로그인하고 나만의 링크 페이지를 만들어보세요!
+          </p>
+          <Button size="lg" onClick={login} className="font-bold px-8 w-full">
+            <LogIn className="mr-2 h-5 w-5" />
+            Google로 로그인하기
+          </Button>
+        </Card>
       </div>
     );
   }
@@ -169,8 +172,7 @@ export default function Dashboard() {
       )}
       
       <main className="mx-auto max-w-2xl space-y-8">
-        {/* Profile Card */}
-        <div className="rounded-3xl border-none bg-white p-8 shadow-xl relative overflow-hidden group">
+        <Card className="p-8 relative overflow-hidden group shadow-sm border-border">
           <div className="absolute inset-0 bg-linear-to-br from-primary/5 to-transparent opacity-50" />
           <div className="relative flex flex-col items-center space-y-5">
             <div className="relative">
@@ -179,14 +181,14 @@ export default function Dashboard() {
                 src={profile?.photoURL || user.photoURL || "https://github.com/shadcn.png"}
                 alt="Profile"
                 referrerPolicy="no-referrer"
-                className="relative h-28 w-28 rounded-full border-4 border-white object-cover shadow-lg"
+                className="relative h-28 w-28 rounded-full border-4 border-background object-cover shadow-lg"
               />
             </div>
             
             <div className="w-full space-y-4 text-center">
               <div className="space-y-1">
                 {/* Display Name */}
-                <h2 className="text-2xl font-extrabold text-gray-900 inline-flex items-center gap-2">
+                <h2 className="text-2xl font-extrabold text-card-foreground inline-flex items-center gap-2">
                   {profile?.displayName || profile?.username || "이름 설정"} 
                 </h2>
 
@@ -246,7 +248,7 @@ export default function Dashboard() {
                     autoFocus
                     disabled={isUpdating}
                     placeholder="자기소개를 입력해주세요..."
-                    className="mx-auto max-w-md text-center bg-gray-50/50"
+                    className="mx-auto max-w-md text-center bg-muted text-foreground"
                   />
                 ) : (
                   <p
@@ -265,21 +267,18 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Links Section */}
-        <div className="space-y-6 pb-20">
-          <div className="flex items-center justify-end px-2">
-            <AddLinkDialog onAdd={addLink} isLoading={isUpdating} />
-          </div>
+        <div className="space-y-4 pb-20">
+          <AddLinkDialog onAdd={addLink} isLoading={isUpdating} />
           
-          <div className="space-y-4">
             {isLinksLoading ? (
-              <div className="flex h-32 items-center justify-center rounded-2xl border bg-white/50 shadow-inner">
+              <div className="flex h-32 items-center justify-center rounded-lg border border-border bg-card/50 shadow-sm">
                 <Loader2 className="h-6 w-6 animate-spin text-primary/40" />
               </div>
             ) : links.length === 0 ? (
-              <div className="flex h-32 items-center justify-center rounded-3xl border-2 border-dashed bg-white/50 text-muted-foreground shadow-inner">
+              <div className="flex h-32 items-center justify-center rounded-lg border-2 border-dashed border-border bg-card/50 text-muted-foreground shadow-sm">
                 등록된 링크가 없습니다. "링크 추가하기"를 클릭해 보세요.
               </div>
             ) : (
@@ -293,7 +292,6 @@ export default function Dashboard() {
                 />
               ))
             )}
-          </div>
         </div>
       </main>
     </div>

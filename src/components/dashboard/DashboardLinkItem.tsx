@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { type LinkItem as LinkType } from "@/data/links"
 import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { 
   Trash2, 
@@ -86,7 +87,7 @@ export function DashboardLinkItem({ link, onUpdate, onDelete, isUpdating = false
   const isLoading = isUpdating || isInternalUpdating
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border bg-white p-5 shadow-sm hover:shadow-md hover:border-primary/50 transition-all duration-300">
+    <Card className="flex flex-col gap-3 p-5 shadow-sm hover:shadow-md hover:border-primary/50 transition-all duration-300">
       {isEditing ? (
         <form onSubmit={handleSubmit(handleUpdate)} className="space-y-4 w-full">
           <div className="space-y-3">
@@ -139,7 +140,7 @@ export function DashboardLinkItem({ link, onUpdate, onDelete, isUpdating = false
         </form>
       ) : (
         <div className="flex items-center gap-5">
-          <div className="bg-linear-to-br from-gray-50 to-gray-100 p-3 rounded-xl shrink-0 border border-gray-100">
+          <div className="bg-linear-to-br from-muted to-muted/50 p-3 rounded-md shrink-0 border border-border">
             <img 
               src={`https://www.google.com/s2/favicons?domain=${(() => {
                 try { return new URL(link.url).hostname; } 
@@ -150,7 +151,7 @@ export function DashboardLinkItem({ link, onUpdate, onDelete, isUpdating = false
             />
           </div>
           <div className="flex-1 min-w-0">
-            <h4 className="font-bold text-lg truncate text-gray-900">{link.title}</h4>
+            <h4 className="font-bold text-lg truncate text-foreground">{link.title}</h4>
             <p className="text-sm text-muted-foreground truncate font-medium">{link.url}</p>
           </div>
           <div className="flex items-center gap-1.5">
@@ -159,7 +160,7 @@ export function DashboardLinkItem({ link, onUpdate, onDelete, isUpdating = false
               size="icon-sm" 
               onClick={onEditToggle}
               disabled={isLoading}
-              className="text-gray-500 hover:text-primary hover:bg-primary/5 rounded-full h-9 w-9"
+              className="text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-full h-9 w-9"
             >
               <Pencil className="h-4 w-4" />
             </Button>
@@ -168,7 +169,7 @@ export function DashboardLinkItem({ link, onUpdate, onDelete, isUpdating = false
               size="icon-sm" 
               onClick={() => setShowDeleteModal(true)}
               disabled={isLoading}
-              className="text-gray-400 hover:text-destructive hover:bg-destructive/5 rounded-full h-9 w-9"
+              className="text-muted-foreground hover:text-destructive hover:bg-destructive/5 rounded-full h-9 w-9"
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -182,7 +183,7 @@ export function DashboardLinkItem({ link, onUpdate, onDelete, isUpdating = false
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">정말 삭제하시겠습니까?</DialogTitle>
             <DialogDescription className="pt-2">
-              <span className="font-semibold text-gray-900">"{link.title}"</span> 링크를 삭제합니다.
+              <span className="font-semibold text-foreground">"{link.title}"</span> 링크를 삭제합니다.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -211,6 +212,6 @@ export function DashboardLinkItem({ link, onUpdate, onDelete, isUpdating = false
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </Card>
   )
 }

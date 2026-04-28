@@ -57,14 +57,22 @@ export function AddLinkDialog({ onAdd, isLoading = false }: AddLinkDialogProps) 
       setOpen(val)
       if (!val) reset()
     }}>
-      <DialogTrigger render={<Button size="sm" disabled={isLoading}><Plus className="mr-2 h-4 w-4" /> 링크 추가하기</Button>} />
+      <DialogTrigger render={
+        <Button 
+          disabled={isLoading}
+          className="w-full font-bold shadow-sm h-auto py-6 text-lg"
+        >
+          <Plus className="mr-2 h-5 w-5" />
+          링크 추가하기
+        </Button>
+      } />
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">새 링크 추가</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 py-4">
           <div className="space-y-2">
-            <label htmlFor="title" className="text-sm font-semibold text-gray-700">제목</label>
+            <label htmlFor="title" className="text-sm font-semibold text-foreground">제목</label>
             <Input
               id="title"
               placeholder="예: 내 웹사이트"
@@ -79,7 +87,7 @@ export function AddLinkDialog({ onAdd, isLoading = false }: AddLinkDialogProps) 
             )}
           </div>
           <div className="space-y-2">
-            <label htmlFor="url" className="text-sm font-semibold text-gray-700">주소 (URL)</label>
+            <label htmlFor="url" className="text-sm font-semibold text-foreground">주소 (URL)</label>
             <Input
               id="url"
               placeholder="https://example.com"

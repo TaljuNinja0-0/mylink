@@ -166,7 +166,7 @@ export function ProfileEditDialog({ currentProfile, userId, onSave, isLoading = 
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 py-4">
           <div className="space-y-2">
-            <label htmlFor="username" className="text-sm font-semibold text-gray-700">Username</label>
+            <label htmlFor="username" className="text-sm font-semibold text-foreground">Username</label>
             <Input
               id="username"
               placeholder="예: john_doe (영문, 숫자, _ 사용 가능)"
@@ -192,7 +192,7 @@ export function ProfileEditDialog({ currentProfile, userId, onSave, isLoading = 
           </div>
           
           <div className="space-y-2">
-            <label htmlFor="displayName" className="text-sm font-semibold text-gray-700">이름 (Display Name)</label>
+            <label htmlFor="displayName" className="text-sm font-semibold text-foreground">이름 (Display Name)</label>
             <Input
               id="displayName"
               placeholder="예: 홍길동"
@@ -218,7 +218,7 @@ export function ProfileEditDialog({ currentProfile, userId, onSave, isLoading = 
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="bio" className="text-sm font-semibold text-gray-700">소개글</label>
+            <label htmlFor="bio" className="text-sm font-semibold text-foreground">소개글</label>
             <Input
               id="bio"
               placeholder="자신을 소개해주세요"
