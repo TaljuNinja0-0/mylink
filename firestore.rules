@@ -1,0 +1,41 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 1. 사용자 프로필 문서 (users/{userId})
+    match /users/{userId} {
+      // [읽기] 누구나 가능 (공개된 MyLink 페이지 렌더링 및 username 중복 검사를 위해 필수)
+      allow read: if true;
+      
+      // [쓰기] 로그인한 본인 확인 및 필수 데이터 유효성 검사 (방어적 프로그래밍)
+      allow write: if request.auth != null 
+                   && request.auth.uid == userId
+                   // username이 업데이트 될 경우 3자 이상인지 확인
+                   && (!('username' in request.resource.data) || 
+                       (request.resource.data.username is string && request.resource.data.username.size() >= 3))
+                   // displayName이 업데이트 될 경우 2자 이상인지 확인
+                   && (!('displayName' in request.resource.data) || 
+                       (request.resource.data.displayName is string && request.resource.data.displayName.size() >= 2))
+                   // bio가 업데이트 될 경우 100자 이하인지 확인
+                   && (!('bio' in request.resource.data) || 
+                       (request.resource.data.bio is string && request.resource.data.bio.size() <= 100));
+    }
+    
+    // 2. 사용자의 링크 서브컬렉션 (users/{userId}/links/{linkId})
+    match /users/{userId}/links/{linkId} {
+      // [읽기] 누구나 가능
+      allow read: if true;
+      
+      // [쓰기] 로그인한 본인 확인 및 링크 데이터 유효성 검사
+      allow write: if request.auth != null 
+                   && request.auth.uid == userId
+                   // title이 빈 값이 아닌지 확인
+                   && (!('title' in request.resource.data) || 
+                       (request.resource.data.title is string && request.resource.data.title.size() > 0))
+                   // url이 빈 값이 아닌지 확인
+                   && (!('url' in request.resource.data) || 
+                       (request.resource.data.url is string && request.resource.data.url.size() > 0));
+    }
+  }
+}

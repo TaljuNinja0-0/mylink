@@ -1,135 +1,124 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { 
-  doc, 
-  getDoc, 
-  updateDoc, 
-  collection, 
-  getDocs, 
-  addDoc, 
-  deleteDoc, 
-  query, 
-  orderBy, 
-  serverTimestamp,
-  onSnapshot 
-} from "firebase/firestore";
+  useProfile, 
+  useLinks, 
+  useUpdateProfile, 
+  useAddLink, 
+  useUpdateLink, 
+  useDeleteLink 
+} from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LogOut, ExternalLink, Trash2, Loader2, Pencil, LogIn, Lock } from "lucide-react";
 import { AddLinkDialog } from "@/components/dashboard/AddLinkDialog";
 import { DashboardLinkItem } from "@/components/dashboard/DashboardLinkItem";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { type LinkItem } from "@/data/links";
 
 export default function Dashboard() {
-  const { user, loading: authLoading, logout, login } = useAuth();
+  const { user, loading: authLoading, login } = useAuth();
   const router = useRouter();
-  const [profile, setProfile] = useState<any>(null);
-  const [isEditingName, setIsEditingName] = useState(false);
+
+  // Queries
+  const { data: profile, isLoading: isProfileLoading } = useProfile(user?.uid);
+  const { data: links = [], isLoading: isLinksLoading } = useLinks(user?.uid);
+
+  // Mutations
+  const updateProfile = useUpdateProfile(user?.uid);
+  const addLinkMutation = useAddLink(user?.uid);
+  const updateLinkMutation = useUpdateLink(user?.uid);
+  const deleteLinkMutation = useDeleteLink(user?.uid);
+
+  // Local state for inline editing
+
+  const [isEditingUsername, setIsEditingUsername] = useState(false);
+  const [tempUsername, setTempUsername] = useState("");
+  
   const [isEditingBio, setIsEditingBio] = useState(false);
-  const [tempName, setTempName] = useState("");
   const [tempBio, setTempBio] = useState("");
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [links, setLinks] = useState<LinkItem[]>([]);
-  const [dataLoading, setDataLoading] = useState(true);
+  
+  // Custom loading state for duplications or other async inline logic
+  const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
 
-  // Fetch profile and links
-  useEffect(() => {
-    if (authLoading || !user) return;
+  const isUpdating = updateProfile.isPending || addLinkMutation.isPending || updateLinkMutation.isPending || deleteLinkMutation.isPending || isCheckingDuplicate;
+  const dataLoading = isProfileLoading || isLinksLoading;
 
-    const fetchProfile = async () => {
-      const docRef = doc(db, "users", user.uid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setProfile(data);
-        setTempName(data.username || data.displayName || "");
-        setTempBio(data.bio || "");
-      }
-    };
-
-    fetchProfile();
-
-    // Fetch links
-    const linksRef = collection(db, "users", user.uid, "links");
-    const q = query(linksRef, orderBy("createdAt", "desc"));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedLinks = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as LinkItem[];
-      setLinks(fetchedLinks);
-      setDataLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [user, authLoading]);
-
-  const updateProfile = async (field: string, value: string) => {
+  const handleInlineUpdate = async (field: string, newValue: string) => {
     if (!user) return;
-    setIsUpdating(true);
-    const docRef = doc(db, "users", user.uid);
+    
+    // 변경된 사항이 없으면 무시
+    const oldValue = profile?.[field] || "";
+    if (newValue === oldValue) {
+      return;
+    }
+
+    // 유효성 검사 및 중복 검사
+    if (field === "username") {
+      if (newValue.length < 3) {
+        alert("Username은 3자 이상이어야 합니다.");
+        setTempUsername(oldValue);
+        return;
+      }
+      if (!/^[a-zA-Z0-9_]+$/.test(newValue)) {
+        alert("Username은 영문자, 숫자, 언더스코어(_)만 사용 가능합니다.");
+        setTempUsername(oldValue);
+        return;
+      }
+      setIsCheckingDuplicate(true);
+      try {
+        const q = query(collection(db, "users"), where("username", "==", newValue));
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.docs.some(doc => doc.id !== user.uid)) {
+          alert("이미 사용 중인 Username입니다.");
+          setTempUsername(oldValue);
+          return;
+        }
+      } finally {
+        setIsCheckingDuplicate(false);
+      }
+
+    } else if (field === "bio") {
+      if (newValue.length > 100) {
+        alert("소개글은 100자 이내여야 합니다.");
+        setTempBio(oldValue);
+        return;
+      }
+    }
+
     try {
-      await updateDoc(docRef, { 
-        [field]: value,
-        updatedAt: serverTimestamp()
-      });
-      setProfile((prev: any) => ({ ...prev, [field]: value }));
+      await updateProfile.mutateAsync({ field, value: newValue });
     } catch (error) {
-      console.error("Update failed:", error);
-    } finally {
-      setIsUpdating(false);
+      console.error(`Profile update failed for ${field}:`, error);
+      alert("업데이트 중 오류가 발생했습니다.");
     }
   };
 
   const addLink = async (title: string, url: string) => {
-    if (!user) return;
-    setIsUpdating(true);
     try {
-      await addDoc(collection(db, "users", user.uid, "links"), {
-        title,
-        url,
-        clickCount: 0,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+      await addLinkMutation.mutateAsync({ title, url });
     } catch (error) {
       console.error("Add link failed:", error);
-    } finally {
-      setIsUpdating(false);
     }
   };
 
   const updateLink = async (id: string, title: string, url: string) => {
-    if (!user) return;
-    setIsUpdating(true);
     try {
-      const linkRef = doc(db, "users", user.uid, "links", id);
-      await updateDoc(linkRef, {
-        title,
-        url,
-        updatedAt: serverTimestamp(),
-      });
+      await updateLinkMutation.mutateAsync({ id, title, url });
     } catch (error) {
       console.error("Update link failed:", error);
-    } finally {
-      setIsUpdating(false);
     }
   };
 
   const deleteLink = async (id: string) => {
-    if (!user) return;
-    setIsUpdating(true);
     try {
-      await deleteDoc(doc(db, "users", user.uid, "links", id));
+      await deleteLinkMutation.mutateAsync(id);
     } catch (error) {
       console.error("Delete link failed:", error);
-    } finally {
-      setIsUpdating(false);
     }
   };
 
@@ -161,7 +150,7 @@ export default function Dashboard() {
     );
   }
 
-  if (!profile && dataLoading) {
+  if (dataLoading && !profile) {
     return (
       <div className="flex h-[calc(100vh-64px)] flex-col items-center justify-center gap-4">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -180,19 +169,6 @@ export default function Dashboard() {
       )}
       
       <main className="mx-auto max-w-2xl space-y-8">
-        <header className="flex items-center justify-between mb-4 px-2">
-          <h2 className="text-2xl font-bold tracking-tight text-gray-900">내 대시보드</h2>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="shadow-sm"
-            onClick={() => window.open(`/${profile?.username || user.uid}`, "_blank")}
-          >
-            <ExternalLink className="mr-2 h-4 w-4" />
-            내 페이지 보기
-          </Button>
-        </header>
-
         {/* Profile Card */}
         <div className="rounded-3xl border-none bg-white p-8 shadow-xl relative overflow-hidden group">
           <div className="absolute inset-0 bg-linear-to-br from-primary/5 to-transparent opacity-50" />
@@ -209,49 +185,62 @@ export default function Dashboard() {
             
             <div className="w-full space-y-4 text-center">
               <div className="space-y-1">
-                {isEditingName ? (
-                  <Input
-                    value={tempName}
-                    onChange={(e) => setTempName(e.target.value)}
-                    onBlur={() => {
-                      setIsEditingName(false);
-                      updateProfile("username", tempName);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        setIsEditingName(false);
-                        updateProfile("username", tempName);
-                      }
-                    }}
-                    autoFocus
-                    disabled={isUpdating}
-                    className="mx-auto max-w-xs text-center text-2xl font-bold bg-gray-50/50"
-                  />
-                ) : (
-                  <h2
-                    onClick={() => !isUpdating && setIsEditingName(true)}
-                    className={`cursor-pointer text-2xl font-extrabold hover:text-primary transition-colors group inline-flex items-center gap-2 ${isUpdating ? "opacity-70" : ""}`}
-                  >
-                    {profile?.username || "이름 설정"} 
-                    <span className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-all text-sm translate-x-1">✎</span>
-                  </h2>
-                )}
-                <p className="text-sm text-muted-foreground font-medium tracking-wide">{user.email}</p>
+                {/* Display Name */}
+                <h2 className="text-2xl font-extrabold text-gray-900 inline-flex items-center gap-2">
+                  {profile?.displayName || profile?.username || "이름 설정"} 
+                </h2>
+
+                {/* Username */}
+                <div className="mt-1">
+                  {isEditingUsername ? (
+                    <Input
+                      value={tempUsername}
+                      onChange={(e) => setTempUsername(e.target.value)}
+                      onBlur={() => {
+                        setIsEditingUsername(false);
+                        handleInlineUpdate("username", tempUsername);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          setIsEditingUsername(false);
+                          handleInlineUpdate("username", tempUsername);
+                        }
+                      }}
+                      autoFocus
+                      disabled={isUpdating}
+                      className="mx-auto max-w-[200px] text-center text-sm font-medium text-primary bg-primary/5"
+                    />
+                  ) : (
+                    <p 
+                      onClick={() => {
+                        if (!isUpdating) {
+                          setTempUsername(profile?.username || "");
+                          setIsEditingUsername(true);
+                        }
+                      }}
+                      className={`cursor-pointer text-sm font-medium text-primary hover:text-primary/70 transition-colors group inline-flex items-center gap-1.5 ${isUpdating ? "opacity-70" : ""}`}
+                    >
+                      @{profile?.username || "username_설정"}
+                      <span className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-all text-xs">✎</span>
+                    </p>
+                  )}
+                </div>
               </div>
 
-              <div className="text-base">
+              <div className="text-base pt-2">
+                {/* Bio */}
                 {isEditingBio ? (
                   <Input
                     value={tempBio}
                     onChange={(e) => setTempBio(e.target.value)}
                     onBlur={() => {
                       setIsEditingBio(false);
-                      updateProfile("bio", tempBio);
+                      handleInlineUpdate("bio", tempBio);
                     }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         setIsEditingBio(false);
-                        updateProfile("bio", tempBio);
+                        handleInlineUpdate("bio", tempBio);
                       }
                     }}
                     autoFocus
@@ -261,7 +250,12 @@ export default function Dashboard() {
                   />
                 ) : (
                   <p
-                    onClick={() => !isUpdating && setIsEditingBio(true)}
+                    onClick={() => {
+                      if (!isUpdating) {
+                        setTempBio(profile?.bio || "");
+                        setIsEditingBio(true);
+                      }
+                    }}
                     className={`cursor-pointer text-muted-foreground leading-relaxed hover:text-primary transition-colors group flex items-center justify-center gap-1.5 ${isUpdating ? "opacity-70" : ""}`}
                   >
                     {profile?.bio || "자기소개를 추가해보세요..."} 
@@ -275,13 +269,12 @@ export default function Dashboard() {
 
         {/* Links Section */}
         <div className="space-y-6 pb-20">
-          <div className="flex items-center justify-between px-2">
-            <h3 className="text-xl font-bold tracking-tight">링크 관리</h3>
+          <div className="flex items-center justify-end px-2">
             <AddLinkDialog onAdd={addLink} isLoading={isUpdating} />
           </div>
           
           <div className="space-y-4">
-            {dataLoading ? (
+            {isLinksLoading ? (
               <div className="flex h-32 items-center justify-center rounded-2xl border bg-white/50 shadow-inner">
                 <Loader2 className="h-6 w-6 animate-spin text-primary/40" />
               </div>
@@ -290,7 +283,7 @@ export default function Dashboard() {
                 등록된 링크가 없습니다. "링크 추가하기"를 클릭해 보세요.
               </div>
             ) : (
-              links.map((link) => (
+              links.map((link: LinkItem) => (
                 <DashboardLinkItem
                   key={link.id}
                   link={link}

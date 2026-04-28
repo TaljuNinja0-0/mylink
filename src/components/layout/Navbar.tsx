@@ -12,39 +12,38 @@ import {
   DropdownMenuItem, 
   DropdownMenuSeparator 
 } from "@/components/ui/dropdown-menu"
-import { useEffect, useState } from "react"
-import { db } from "@/lib/firebase"
-import { doc, getDoc } from "firebase/firestore"
+import { useState, useEffect } from "react"
+import { useProfile } from "@/lib/queries"
 import { toast } from "sonner"
 
 export function Navbar() {
   const { user, login, logout, loading } = useAuth()
   const pathname = usePathname()
-  const [username, setUsername] = useState<string>("")
+  
+  // Use React Query for profile
+  const { data: profile } = useProfile(user?.uid)
 
-  useEffect(() => {
-    if (user) {
-      const fetchUsername = async () => {
-        const docRef = doc(db, "users", user.uid)
-        const docSnap = await getDoc(docRef)
-        if (docSnap.exists()) {
-          setUsername(docSnap.data().username || "")
-        }
-      }
-      fetchUsername()
-    }
-  }, [user])
+  // Use username for the slug (email prefix)
+  const userSlug = profile?.username || user?.uid || ""
+  const displayLabel = profile?.displayName || profile?.username || user?.displayName || ""
+
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
   // 메인 페이지(/)이면서 로그인이 안 된 상태일 때는 헤더의 로그인 버튼을 숨김
   const showLoginButton = pathname !== "/" || user
 
   const copyToClipboard = () => {
-    const url = `${window.location.origin}/${username}`
+    if (!userSlug) return;
+    const url = `${window.location.origin}/${encodeURIComponent(userSlug)}`
     navigator.clipboard.writeText(url)
     toast.success("내 페이지 링크가 복사되었습니다!", {
       description: url,
     })
   }
+
+  // Next.js hydration mismatch 방지
+  if (!mounted) return null;
 
   return (
     <nav className="sticky top-0 z-40 w-full border-b bg-white/80 backdrop-blur-md">
@@ -63,12 +62,18 @@ export function Navbar() {
             <div className="h-8 w-24 animate-pulse rounded-lg bg-gray-100" />
           ) : user ? (
             <>
-              <Link href="/dashboard">
-                <Button variant="ghost" size="sm" className="hidden sm:flex font-medium text-gray-600 hover:text-primary">
-                  <LayoutDashboard className="mr-2 h-4 w-4" />
-                  대시보드
+              {/* Removed dashboard button */}
+
+              {userSlug && (
+                <Button 
+                  size="sm" 
+                  className="px-2.5 sm:px-3 font-medium shadow-md shadow-primary/20 bg-primary hover:bg-primary/90 text-white transition-all hover:scale-105 active:scale-95"
+                  onClick={() => window.open(`/${encodeURIComponent(userSlug)}`, "_blank")}
+                >
+                  <ExternalLink className="h-4 w-4 sm:mr-1.5" />
+                  <span className="hidden sm:inline">내 페이지</span>
                 </Button>
-              </Link>
+              )}
               
               <DropdownMenu>
                 <DropdownMenuTrigger render={
@@ -87,7 +92,7 @@ export function Navbar() {
                 <DropdownMenuContent className="w-56">
                   <div className="flex flex-col space-y-1 p-3 pb-2">
                     <p className="text-sm font-bold leading-none text-gray-900">
-                      {user.displayName || username}
+                      {displayLabel}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground truncate">
                       {user.email}
@@ -97,7 +102,9 @@ export function Navbar() {
                   <div className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                     내 페이지
                   </div>
-                  <DropdownMenuItem onClick={() => window.open(`/${username}`, "_blank")}>
+                  <DropdownMenuItem onClick={() => {
+                    if (userSlug) window.open(`/${encodeURIComponent(userSlug)}`, "_blank")
+                  }}>
                     <ExternalLink className="mr-2 h-4 w-4" />
                     내 페이지 미리보기
                   </DropdownMenuItem>

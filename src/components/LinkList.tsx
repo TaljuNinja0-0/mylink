@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { db } from "@/lib/firebase";
-import { collection, query, orderBy, getDocs } from "firebase/firestore";
+import { useLinks } from "@/lib/queries";
 import { type LinkItem } from "@/data/links";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
@@ -12,31 +10,7 @@ interface LinkListProps {
 }
 
 export default function LinkList({ uid }: LinkListProps) {
-  const [links, setLinks] = useState<LinkItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchLinks() {
-      if (!uid) return;
-      try {
-        setLoading(true);
-        const linksRef = collection(db, "users", uid, "links");
-        const q = query(linksRef, orderBy("createdAt", "desc"));
-        const snapshot = await getDocs(q);
-        const fetchedLinks = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as LinkItem[];
-        setLinks(fetchedLinks);
-      } catch (error) {
-        console.error("Error fetching links:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    
-    fetchLinks();
-  }, [uid]);
+  const { data: links = [], isLoading: loading } = useLinks(uid);
 
   if (loading) {
     return (
